@@ -1,0 +1,38 @@
+name: Mirror to Codeberg
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Push to Codeberg
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_CODEBERG }}
+          REPO_URL_CODEBERG: ${{ secrets.REPO_URL_CODEBERG }}
+        run: |
+          set -euxo pipefail
+
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          cat >> ~/.ssh/config <<EOF
+          Host codeberg.org
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking no
+          EOF
+
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+
+          git remote add codeberg "$REPO_URL_CODEBERG"
+          git push --tags --force --prune codeberg "refs/remotes/origin/*:refs/heads/*"
