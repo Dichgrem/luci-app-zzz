@@ -1,19 +1,6 @@
--- /usr/lib/lua/luci/model/cbi/zzz.lua
 local m, s, o
 local sys = require("luci.sys")
-
--- control
-local start_action = luci.http.formvalue("cbid.zzz.auth.start_service")
-local stop_action = luci.http.formvalue("cbid.zzz.auth.stop_service")
-local restart_action = luci.http.formvalue("cbid.zzz.auth.restart_service")
-
-if start_action then
-	sys.call("/etc/rc.d/S99zzz start")
-elseif stop_action then
-	sys.call("/etc/rc.d/S99zzz stop")
-elseif restart_action then
-	sys.call("/etc/rc.d/S99zzz stop; sleep 2; /etc/rc.d/S99zzz start")
-end
+local util = require("luci.util")
 
 m = Map("zzz", "ZZZ 802.1x 认证客户端", "配置使用 zzz 客户端进行网络访问的 802.1x 认证")
 
@@ -22,11 +9,9 @@ s = m:section(TypedSection, "auth", "认证设置")
 s.anonymous = true
 s.addremove = false
 
--- Service Status
 o = s:option(DummyValue, "_status", "当前状态")
 o.rawhtml = true
 o.cfgvalue = function()
-	local sys = require("luci.sys")
 	local running = sys.call("pgrep zzz >/dev/null") == 0
 	if running then
 		return "<span style='color:green;font-weight:bold'>✔ 正在运行中</span>"
@@ -40,15 +25,12 @@ control_buttons = s:option(DummyValue, "_control", "服务控制")
 control_buttons.rawhtml = true
 control_buttons.cfgvalue = function()
 	return [[
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="submit" class="cbi-button cbi-button-apply"
-                   name="cbid.zzz.auth.start_service" value="启动服务" />
-            <input type="submit" class="cbi-button cbi-button-remove"
-                   name="cbid.zzz.auth.stop_service" value="停止服务" />
-            <input type="submit" class="cbi-button cbi-button-reload"
-                   name="cbid.zzz.auth.restart_service" value="重启服务" />
-        </div>
-    ]]
+		<div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+			<button type="button" class="cbi-button cbi-button-apply" onclick="fetch('/cgi-bin/luci/admin/network/zzz/service_control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=start'}).then(r=>r.json()).then(d=>{alert(d.message);if(d.success)location.reload();});return false;">启动服务</button>
+			<button type="button" class="cbi-button cbi-button-remove" onclick="fetch('/cgi-bin/luci/admin/network/zzz/service_control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=stop'}).then(r=>r.json()).then(d=>{alert(d.message);if(d.success)location.reload();});return false;">停止服务</button>
+			<button type="button" class="cbi-button cbi-button-reload" onclick="fetch('/cgi-bin/luci/admin/network/zzz/service_control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=restart'}).then(r=>r.json()).then(d=>{alert(d.message);if(d.success)location.reload();});return false;">重启服务</button>
+		</div>
+	]]
 end
 
 -- Username
@@ -59,9 +41,18 @@ o = s:option(
 	[[802.1x 认证用户名
 <span style="cursor: help; color: #007bff; font-weight: bold;" title="用户名为学号@运营商，例如212306666@cucc；移动为cmcc，联通为cucc，电信为ctcc">?</span>]]
 )
-o.password = true
 o.rmempty = false
 o.rawhtml = true
+function o.validate(self, value)
+	value = value:match("^%s*(.-)%s*$") or value
+	if #value < 3 or #value > 64 then
+		return nil, "用户名长度必须在3-64字符之间"
+	end
+	if not value:match("^[a-zA-Z0-9@._-]+$") then
+		return nil, "用户名只能包含字母、数字、@、.、_和-"
+	end
+	return value
+end
 
 -- Password
 o.password = true
@@ -76,6 +67,12 @@ o = s:option(
 o.password = true
 o.rmempty = false
 o.rawhtml = true
+function o.validate(self, value)
+	if #value < 4 or #value > 128 then
+		return nil, "密码长度必须在4-128字符之间"
+	end
+	return value
+end
 
 -- Network Device
 o = s:option(
@@ -90,12 +87,18 @@ o:value("eth0", "eth0")
 o:value("eth1", "eth1")
 o:value("wan", "WAN")
 
--- Add network interface
 local interfaces = sys.net.devices()
 for _, iface in ipairs(interfaces) do
-	if iface ~= "lo" then
+	if iface ~= "lo" and iface:match("^[a-zA-Z0-9]+$") then
 		o:value(iface, iface)
 	end
+end
+
+function o.validate(self, value)
+	if not value:match("^[a-zA-Z0-9]+$") then
+		return nil, "网络接口只能包含字母和数字"
+	end
+	return value
 end
 
 -- Auto start
@@ -111,16 +114,19 @@ end
 
 -- Crontab
 auto_start.write = function(self, section, value)
+	local temp_cron = "/tmp/.zzz_cron_tmp_" .. os.time()
 	if value == "1" then
-		-- 启用定时任务：每周一至周五 7:00 启动
-		sys.call("(crontab -l 2>/dev/null | grep -v 'S99zzz' | grep -v '# zzz auto') | crontab - 2>/dev/null")
-		sys.call(
-			"(crontab -l 2>/dev/null; echo '0 7 * * 1,2,3,4,5 /etc/rc.d/S99zzz start # zzz auto start') | crontab -"
-		)
+		sys.call("crontab -l 2>/dev/null > " .. temp_cron)
+		sys.call("sed -i '/S99zzz/d' " .. temp_cron)
+		sys.call("sed -i '/# zzz auto/d' " .. temp_cron)
+		sys.call("echo '0 7 * * 1,2,3,4,5 /etc/rc.d/S99zzz start # zzz auto start' >> " .. temp_cron)
+		sys.call("crontab " .. temp_cron .. " 2>/dev/null && rm -f " .. temp_cron)
 		sys.call("/etc/init.d/cron enable && /etc/init.d/cron restart")
 	else
-		-- 禁用定时任务
-		sys.call("(crontab -l 2>/dev/null | grep -v 'S99zzz' | grep -v '# zzz auto') | crontab - 2>/dev/null")
+		sys.call("crontab -l 2>/dev/null > " .. temp_cron)
+		sys.call("sed -i '/S99zzz/d' " .. temp_cron)
+		sys.call("sed -i '/# zzz auto/d' " .. temp_cron)
+		sys.call("crontab " .. temp_cron .. " 2>/dev/null && rm -f " .. temp_cron)
 		sys.call("/etc/init.d/cron restart")
 	end
 end

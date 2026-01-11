@@ -18,10 +18,13 @@ end
 
 function service_control()
 	local sys = require("luci.sys")
+	local util = require("luci.util")
 	local action = luci.http.formvalue("action")
 	local result = { success = false, message = "" }
 
-	if action then
+	local valid_actions = { start = true, stop = true, restart = true }
+
+	if action and valid_actions[action] then
 		local cmd = ""
 		if action == "start" then
 			cmd = "/etc/rc.d/S99zzz start"
@@ -35,12 +38,14 @@ function service_control()
 			local ret = sys.call(cmd)
 			if ret == 0 then
 				result.success = true
-				result.message = action .. " 成功"
+				result.message = util.pcdata(action .. " 成功")
 			else
 				result.success = false
-				result.message = action .. " 失败"
+				result.message = util.pcdata(action .. " 失败")
 			end
 		end
+	else
+		result.message = "无效的操作"
 	end
 
 	luci.http.prepare_content("application/json")
@@ -52,19 +57,21 @@ function act_status()
 	local util = require("luci.util")
 	local status = {}
 
-	-- Get status
 	status.running = (sys.call("pgrep -f zzz >/dev/null") == 0)
 
-	-- Get process info
 	if status.running then
 		status.process_info = util.trim(sys.exec("ps | grep -v grep | grep zzz"))
 	end
-	-- Get log
+
 	local log_file = "/tmp/zzz.log"
 	if nixio.fs.access(log_file) then
 		status.log = util.trim(sys.exec("tail -20 " .. log_file))
 	else
 		status.log = util.trim(sys.exec("logread | grep zzz | tail -10"))
+	end
+
+	if status.log then
+		status.log = util.pcdata(status.log)
 	end
 
 	luci.http.prepare_content("application/json")

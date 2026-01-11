@@ -3,24 +3,60 @@ name: Build luci-app-zzz
 on:
   workflow_dispatch:
     inputs:
-      sdk:
-        description: '选择架构'
-        required: true
-        type: choice
-        options:
-          - ramips
-          - filogic
-          - x86_64
-        default: filogic
-
-env:
-  RAMIPS_SDK_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/ramips/mt7621/immortalwrt-sdk-24.10.3-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-  FILOGIC_SDK_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/mediatek/filogic/immortalwrt-sdk-24.10.3-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-  X86_SDK_URL:  https://downloads.immortalwrt.org/releases/24.10.3/targets/x86/64/immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      ramips:
+        description: 'ramips'
+        required: false
+        type: boolean
+        default: true
+      filogic:
+        description: 'filogic'
+        required: false
+        type: boolean
+        default: true
+      x86_64:
+        description: 'x86_64'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
-  build:
+  matrix-setup:
     runs-on: ubuntu-latest
+    outputs:
+      architectures: ${{ steps.set-matrix.outputs.architectures }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          ARCHS='['
+          if [ "${{ inputs.ramips }}" == "true" ]; then
+            ARCHS=$ARCHS'"ramips",'
+          fi
+          if [ "${{ inputs.filogic }}" == "true" ]; then
+            ARCHS=$ARCHS'"filogic",'
+          fi
+          if [ "${{ inputs.x86_64 }}" == "true" ]; then
+            ARCHS=$ARCHS'"x86_64",'
+          fi
+          ARCHS=${ARCHS%,}
+          ARCHS=$ARCHS']'
+          echo "architectures=$ARCHS" >> $GITHUB_OUTPUT
+          echo "Selected architectures: $ARCHS"
+
+  build:
+    needs: matrix-setup
+    if: needs.matrix-setup.outputs.architectures != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ${{ fromJson(needs.matrix-setup.outputs.architectures) }}
+
+    env:
+      RAMIPS_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/ramips/mt7621/immortalwrt-sdk-24.10.3-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      FILOGIC_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/mediatek/filogic/immortalwrt-sdk-24.10.3-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      X86_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/x86/64/immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      WORK_ROOT: ${{ github.workspace }}/imwrt-sdk
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,24 +68,22 @@ jobs:
           sudo apt-get install -y build-essential git wget python3 rsync zstd g++ make libncurses-dev
           echo "✅ 下载完毕"
 
-      - name: Resolve SDK choice
-        id: vars
+      - name: Set SDK variables
         run: |
-          set -e
-          if [ "${{ github.event.inputs.sdk }}" = "x86_64" ]; then
-            echo "SDK_URL=${X86_SDK_URL}" >> $GITHUB_ENV
-            echo "PACKAGE_ARCH=x86_64" >> $GITHUB_ENV
-            echo "👉 选择x86_64架构"
-          elif [ "${{ github.event.inputs.sdk }}" = "filogic" ]; then
-            echo "SDK_URL=${FILOGIC_SDK_URL}" >> $GITHUB_ENV
-            echo "PACKAGE_ARCH=aarch64_cortex-a53" >> $GITHUB_ENV
-            echo "👉 选择aarch64架构"
-          else
-            echo "SDK_URL=${RAMIPS_SDK_URL}" >> $GITHUB_ENV
+          if [ "${{ matrix.sdk }}" == "ramips" ]; then
+            echo "SDK_URL=${{ env.RAMIPS_URL }}" >> $GITHUB_ENV
             echo "PACKAGE_ARCH=ramips" >> $GITHUB_ENV
-            echo "👉 选择ramips架构"
+          elif [ "${{ matrix.sdk }}" == "filogic" ]; then
+            echo "SDK_URL=${{ env.FILOGIC_URL }}" >> $GITHUB_ENV
+            echo "PACKAGE_ARCH=aarch64_cortex-a53" >> $GITHUB_ENV
+          else
+            echo "SDK_URL=${{ env.X86_URL }}" >> $GITHUB_ENV
+            echo "PACKAGE_ARCH=x86_64" >> $GITHUB_ENV
           fi
-          echo "WORK_ROOT=$GITHUB_WORKSPACE/imwrt-sdk" >> $GITHUB_ENV
+
+      - name: Show build target
+        run: |
+          echo "👉 正在编译 ${{ matrix.sdk }} 架构 (${{ env.PACKAGE_ARCH }})"
 
       - name: Download & extract SDK
         run: |
@@ -123,16 +157,16 @@ jobs:
           ls -lah "$OUT"
         shell: bash
 
-      - name: Upload package one
+      - name: Upload package luci-app-zzz
         uses: actions/upload-artifact@v4
         with:
-          name: luci-app-zzz
+          name: luci-app-zzz-${{ matrix.sdk }}
           path: output/*luci-app-zzz*.ipk
           if-no-files-found: error
 
-      - name: Upload package two
+      - name: Upload package zzz
         uses: actions/upload-artifact@v4
         with:
-          name: zzz
+          name: zzz-${{ matrix.sdk }}
           path: output/*zzz*.ipk
           if-no-files-found: error
