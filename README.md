@@ -1,12 +1,10 @@
-# luci-app-nyn
+# luci-app-zzz
 
-**luci-app-nyn** is a Front-end interface in openwrt for nyn - the modern 802.1x standard authentication client.
+**luci-app-zzz** is a Front-end interface in openwrt for zzz - the modern 802.1x standard authentication client.
 
 <p align="center">
-  <img src="https://github.com/Dichgrem/luci-app-nyn/blob/main/screenshot.png" width="400">
+  <img src="https://github.com/Dichgrem/luci-app-zzz/blob/main/screenshot.png" width="400">
 </p>
-
-> Attention ! The nyn project is archived and it is recommended to use the c language version of zzz instead of it ! In order to commemorate nyn, the name of this project is not modified.
 
 ## How to use
 
@@ -22,11 +20,11 @@
 - First clone this repository to the package directory of the openwrt you want to compile:
 
 ```
-cd ./package
-git clone https://github.com/Dichgrem/luci-app-nyn.git
-cp -r ./luci-app-nyn/luci-app-zzz ./
-cp -r ./luci-app-nyn/zzz ./
-rm -rf ./luci-app-nyn
+## Add feed
+echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git" >> feeds.conf.default
+## Update and install feed
+./scripts/feeds update
+./scripts/feeds install luci-app-zzz zzz
 ```
 - Then select ``Network->zzz`` and ``LuCI->Applications->luci-app-zzz`` in make menuconfig and change them to "M" state;
 

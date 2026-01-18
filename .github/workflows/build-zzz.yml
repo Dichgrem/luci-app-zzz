@@ -57,16 +57,24 @@ jobs:
       FILOGIC_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/mediatek/filogic/immortalwrt-sdk-24.10.3-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
       X86_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/x86/64/immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
       WORK_ROOT: ${{ github.workspace }}/imwrt-sdk
+      CACHE_DIR: ${{ github.workspace }}/cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache SDK
+        uses: actions/cache@v4
+        id: sdk-cache
+        with:
+          path: ${{ env.WORK_ROOT }}
+          key: ${{ matrix.sdk }}-sdk-24.10.3
+          enableCrossOsArchive: true
+
       - name: Install dependencies
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
-          echo "👉 正在下载依赖项"
-          sudo apt-get update
-          sudo apt-get install -y build-essential git wget python3 rsync zstd g++ make libncurses-dev
-          echo "✅ 下载完毕"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential git wget python3 rsync zstd g++ make libncurses-dev
 
       - name: Set SDK variables
         run: |
@@ -86,87 +94,73 @@ jobs:
           echo "👉 正在编译 ${{ matrix.sdk }} 架构 (${{ env.PACKAGE_ARCH }})"
 
       - name: Download & extract SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           mkdir -p "$WORK_ROOT"
           cd "$WORK_ROOT"
 
           SDK_TAR="$(basename "$SDK_URL")"
-          echo "👉 正在下载SDK：$SDK_TAR"
-          wget -q "$SDK_URL" -O "$SDK_TAR"
+          echo "下载SDK: $SDK_TAR"
+          wget -q --show-progress "$SDK_URL" -O "$SDK_TAR"
 
-          echo "📦 正在解压SDK..."
-          tar --use-compress-program="zstd -q -d" -xf "$SDK_TAR" >/dev/null 2>&1
+          echo "解压SDK..."
+          tar --use-compress-program="zstd -q -d" -xf "$SDK_TAR"
 
-          echo "✅ SDK解压完成"
           SDK_ROOT="$(find . -maxdepth 1 -type d -name 'immortalwrt-sdk*' | head -n 1)"
-          if [ -z "$SDK_ROOT" ]; then
-            echo "❌ 未找到SDK目录" >&2
-            exit 1
-          fi
           SDK_ROOT="$(cd "$SDK_ROOT" && pwd)"
           echo "SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
-          echo "📁 SDK路径: $SDK_ROOT"
 
-      - name: Setup feeds & clone source
+      - name: Set SDK_ROOT from cache
+        if: steps.sdk-cache.outputs.cache-hit == 'true'
+        run: |
+          SDK_ROOT="$(find "$WORK_ROOT" -maxdepth 1 -type d -name 'immortalwrt-sdk*' | head -n 1)"
+          SDK_ROOT="$(cd "$SDK_ROOT" && pwd)"
+          echo "SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
+          echo "使用缓存的SDK: $SDK_ROOT"
+
+      - name: Setup feeds
         run: |
           set -euo pipefail
           cd "$SDK_ROOT"
-          echo "👉 正在设置feeds"
+          echo "添加 zzz feed"
+          echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git" >> feeds.conf.default
+          echo "更新 feeds"
           ./scripts/feeds update -a
-          ./scripts/feeds update luci || true
-          ./scripts/feeds install -a -p luci || ./scripts/feeds install luci || true
-          echo "✅ feeds下载完毕"
-          cd package
-          git clone https://github.com/Dichgrem/luci-app-nyn.git
-          cp -r luci-app-nyn/luci-app-zzz . 2>/dev/null || true
-          cp -r luci-app-nyn/zzz . 2>/dev/null || true
-          rm -rf luci-app-nyn
+          ./scripts/feeds update luci
+          ./scripts/feeds update zzz
+          echo "安装 feeds"
+          ./scripts/feeds install -a -p luci
+          ./scripts/feeds install luci-app-zzz zzz
 
-      - name: Build luci-app-zzz
+      - name: Build packages
         run: |
           set -euo pipefail
           cd "$SDK_ROOT"
           make defconfig
-          echo "👉 正在编译中"
+          echo "编译 luci-app-zzz 和 zzz"
           make package/luci-app-zzz/compile V=s
-          echo "✅ 编译完成"
+          make package/zzz/compile V=s
 
       - name: Collect packages
         run: |
           set -euo pipefail
-          SDK_ROOT="$SDK_ROOT"
           OUT="$GITHUB_WORKSPACE/output"
           mkdir -p "$OUT"
 
-          echo "🔍 自动检测 SDK 包架构目录..."
-          BASE_DIR=$(find "$SDK_ROOT/bin/packages" -type d -path "*/base" | head -n1 || true)
-          if [ -z "$BASE_DIR" ]; then
-            echo "❌ 未找到 base 目录" >&2
-            ls -R "$SDK_ROOT/bin/packages" || true
-            exit 1
-          fi
+          echo "所有编译的 ipk 文件:"
+          find "$SDK_ROOT/bin/packages" -name "*.ipk" -type f
 
-          echo "📦 从: $BASE_DIR 收集 luci-app-zzz 与 zzz 包..."
-          ls -lah "$BASE_DIR" || true
+          echo ""
+          echo "复制 zzz 和 luci-app-zzz 包:"
+          find "$SDK_ROOT/bin/packages" \( -name "zzz_*.ipk" -o -name "luci-app-zzz_*.ipk" \) -type f -exec cp {} "$OUT"/ \;
 
-          cp -v "$BASE_DIR"/*luci-app-zzz*.ipk "$OUT"/ 2>/dev/null || true
-          cp -v "$BASE_DIR"/*zzz*.ipk "$OUT"/ 2>/dev/null || true
-
-          echo "✅ 收集完成，输出目录内容："
+          echo "输出目录内容:"
           ls -lah "$OUT"
-        shell: bash
 
-      - name: Upload package luci-app-zzz
+      - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: luci-app-zzz-${{ matrix.sdk }}
-          path: output/*luci-app-zzz*.ipk
-          if-no-files-found: error
-
-      - name: Upload package zzz
-        uses: actions/upload-artifact@v4
-        with:
-          name: zzz-${{ matrix.sdk }}
-          path: output/*zzz*.ipk
+          name: packages-${{ matrix.sdk }}
+          path: output/*.ipk
           if-no-files-found: error
