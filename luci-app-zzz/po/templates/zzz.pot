@@ -1,0 +1,95 @@
+# ZZZ 802.1x Authentication Client LuCI Application
+# Copyright (C) 2024
+# This file is distributed under the same license as the luci-app-zzz package.
+#
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "ZZZ"
+msgstr ""
+
+msgid "ZZZ 802.1x Authentication Client"
+msgstr ""
+
+msgid "Configure 802.1x authentication for network access using zzz client"
+msgstr ""
+
+msgid "Authentication Settings"
+msgstr ""
+
+msgid "Current Status"
+msgstr ""
+
+msgid "Running"
+msgstr ""
+
+msgid "Not Running"
+msgstr ""
+
+msgid "Service Control"
+msgstr ""
+
+msgid "Start Service"
+msgstr ""
+
+msgid "Stop Service"
+msgstr ""
+
+msgid "Restart Service"
+msgstr ""
+
+msgid "Username"
+msgstr ""
+
+msgid "802.1x authentication username"
+msgstr ""
+
+msgid "Format: studentID@carrier, e.g. 212306666@cucc; Mobile=cmcc, Unicom=cucc, Telecom=ctcc"
+msgstr ""
+
+msgid "Username must be 3-64 characters"
+msgstr ""
+
+msgid "Username can only contain letters, numbers, @, ., _ and -"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "802.1x authentication password"
+msgstr ""
+
+msgid "Default is last 6 digits of ID card, can be changed in official iNode client"
+msgstr ""
+
+msgid "Password must be 4-128 characters"
+msgstr ""
+
+msgid "Network Interface"
+msgstr ""
+
+msgid "Network interface for authentication"
+msgstr ""
+
+msgid "Use 'ip addr' to check, look for interface with 10.38.x.x IP"
+msgstr ""
+
+msgid "Network interface can only contain letters and numbers"
+msgstr ""
+
+msgid "Enable Scheduled Start"
+msgstr ""
+
+msgid "When enabled, service will auto-start at 7:00 AM on weekdays (Mon-Fri)"
+msgstr ""
+
+msgid "Scheduled Task Status"
+msgstr ""
+
+msgid "Enabled (Auto-start at 7:00 AM on weekdays)"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
