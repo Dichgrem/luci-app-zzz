@@ -103,8 +103,37 @@ end
 
 -- Auto start
 auto_start = s:option(Flag, "auto_start", "启用定时启动")
-auto_start.description = "启用后将在每周一至周五的 7:00 自动启动服务"
+auto_start.description = "启用后将在每周一至周五自动启动服务"
 auto_start.rmempty = false
+
+-- Schedule Time
+schedule_time = s:option(Value, "schedule_time", "启动时间")
+schedule_time.description = "设置定时启动的时间 (格式: HH:MM，例如 07:30)"
+schedule_time.placeholder = "07:00"
+schedule_time.rmempty = true
+schedule_time.default = "07:00"
+
+schedule_time.cfgvalue = function(self, section)
+	local value = self.map:get(section, "schedule_time")
+	return value or "07:00"
+end
+
+function schedule_time.validate(self, value)
+	if not value:match("^[0-9][0-9]:[0-9][0-9]$") then
+		return nil, "时间格式必须为 HH:MM (例如 07:30)"
+	end
+	local hour = tonumber(value:sub(1, 2))
+	local minute = tonumber(value:sub(4, 5))
+	if hour < 0 or hour > 23 then
+		return nil, "小时必须在 0-23 之间"
+	end
+	if minute < 0 or minute > 59 then
+		return nil, "分钟必须在 0-59 之间"
+	end
+	return value
+end
+
+schedule_time:depends("auto_start", "1")
 
 -- Get Status
 auto_start.cfgvalue = function(self, section)
@@ -114,12 +143,14 @@ end
 
 -- Crontab
 auto_start.write = function(self, section, value)
+	local schedule_time_val = self.map:get(section, "schedule_time") or "07:00"
+	local hour, minute = schedule_time_val:match("^(%d+):(%d+)$")
 	local temp_cron = "/tmp/.zzz_cron_tmp_" .. os.time()
 	if value == "1" then
 		sys.call("crontab -l 2>/dev/null > " .. temp_cron)
 		sys.call("sed -i '/S99zzz/d' " .. temp_cron)
 		sys.call("sed -i '/# zzz auto/d' " .. temp_cron)
-		sys.call("echo '0 7 * * 1,2,3,4,5 /etc/rc.d/S99zzz start # zzz auto start' >> " .. temp_cron)
+		sys.call(string.format("echo '%s %s * * 1,2,3,4,5 /etc/rc.d/S99zzz start # zzz auto start' >> %s", minute, hour, temp_cron))
 		sys.call("crontab " .. temp_cron .. " 2>/dev/null && rm -f " .. temp_cron)
 		sys.call("/etc/init.d/cron enable && /etc/init.d/cron restart")
 	else
@@ -137,7 +168,15 @@ timer_status_display.rawhtml = true
 timer_status_display.cfgvalue = function()
 	local cron_output = sys.exec("crontab -l 2>/dev/null | grep 'S99zzz' || echo '未设置'")
 	if cron_output:match("S99zzz") then
-		return "<span style='color:green;font-weight:bold'>✔ 已启用 (每周一至周五 7:00 自动启动)</span>"
+		local cron_line = cron_output:match("%d+%s+%d+%s+%*%s+%*%s+%d+,.*# zzz auto")
+		if cron_line then
+			local minute, hour = cron_line:match("^(%d+)%s+(%d+)%s+")
+			if minute and hour then
+				local time_str = string.format("%02d:%02d", tonumber(hour), tonumber(minute))
+				return string.format("<span style='color:green;font-weight:bold'>✔ 已启用 (每周一至周五 %s 自动启动)</span>", time_str)
+			end
+		end
+		return "<span style='color:green;font-weight:bold'>✔ 已启用</span>"
 	else
 		return "<span style='color:red;font-weight:bold'>✘ 未启用</span>"
 	end
