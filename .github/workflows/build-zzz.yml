@@ -124,6 +124,7 @@ jobs:
           set -euo pipefail
           cd "$SDK_ROOT"
           echo "添加 zzz feed"
+          sed -i '/^src-git zzz/d' feeds.conf.default 2>/dev/null || true
           echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git" >> feeds.conf.default
           echo "更新 feeds"
           ./scripts/feeds update -a

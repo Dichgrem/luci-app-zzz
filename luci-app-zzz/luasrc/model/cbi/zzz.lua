@@ -106,11 +106,17 @@ auto_start = s:option(Flag, "auto_start", "启用定时启动")
 auto_start.description = "启用后将在每周一至周五自动启动服务"
 auto_start.rmempty = false
 
+-- Get Status
+auto_start.cfgvalue = function(self, section)
+	local has_cron = sys.call("crontab -l 2>/dev/null | grep 'S99zzz' >/dev/null") == 0
+	return has_cron and "1" or "0"
+end
+
 -- Schedule Time
 schedule_time = s:option(Value, "schedule_time", "启动时间")
 schedule_time.description = "设置定时启动的时间 (格式: HH:MM，例如 07:30)"
 schedule_time.placeholder = "07:00"
-schedule_time.rmempty = true
+schedule_time.rmempty = false
 schedule_time.default = "07:00"
 
 schedule_time.cfgvalue = function(self, section)
@@ -134,12 +140,6 @@ function schedule_time.validate(self, value)
 end
 
 schedule_time:depends("auto_start", "1")
-
--- Get Status
-auto_start.cfgvalue = function(self, section)
-	local has_cron = sys.call("crontab -l 2>/dev/null | grep 'S99zzz' >/dev/null") == 0
-	return has_cron and "1" or "0"
-end
 
 -- Crontab
 auto_start.write = function(self, section, value)
