@@ -2,6 +2,8 @@
 
 **luci-app-zzz** is a Front-end interface in openwrt for zzz - the modern 802.1x standard authentication client.
 
+Supports OpenWRT versions 21.02.0 to 24.10.5; adaptation for version 25.x is underway.
+
 <p align="center">
   <img src="https://github.com/Dichgrem/luci-app-zzz/blob/main/screenshot.png" width="400">
 </p>
