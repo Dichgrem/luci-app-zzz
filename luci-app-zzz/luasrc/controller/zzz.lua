@@ -7,7 +7,7 @@ function index()
 	end
 
 	-- Menu
-	entry({ "admin", "network", "zzz" }, cbi("zzz"), "ZZZ", 60).dependent = false
+	entry({ "admin", "network", "zzz" }, cbi("zzz"), _("ZZZ"), 60).dependent = false
 
 	-- Settings
 	entry({ "admin", "network", "zzz", "service_control" }, call("service_control")).leaf = true
@@ -38,14 +38,14 @@ function service_control()
 			local ret = sys.call(cmd)
 			if ret == 0 then
 				result.success = true
-				result.message = util.pcdata(action .. " 成功")
+				result.message = util.pcdata(action .. " succeeded")
 			else
 				result.success = false
-				result.message = util.pcdata(action .. " 失败")
+				result.message = util.pcdata(action .. " failed")
 			end
 		end
 	else
-		result.message = "无效的操作"
+		result.message = "Invalid action"
 	end
 
 	luci.http.prepare_content("application/json")

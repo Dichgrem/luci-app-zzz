@@ -1,0 +1,96 @@
+# Chinese (Simplified) translation for luci-app-zzz
+# Copyright (C) 2024
+# This file is distributed under the same license as the luci-app-zzz package.
+#
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh_Hans\n"
+
+msgid "ZZZ"
+msgstr "ZZZ"
+
+msgid "ZZZ 802.1x Authentication Client"
+msgstr "ZZZ 802.1x 认证客户端"
+
+msgid "Configure 802.1x authentication for network access using zzz client"
+msgstr "配置使用 zzz 客户端进行网络访问的 802.1x 认证"
+
+msgid "Authentication Settings"
+msgstr "认证设置"
+
+msgid "Current Status"
+msgstr "当前状态"
+
+msgid "Running"
+msgstr "正在运行中"
+
+msgid "Not Running"
+msgstr "未运行"
+
+msgid "Service Control"
+msgstr "服务控制"
+
+msgid "Start Service"
+msgstr "启动服务"
+
+msgid "Stop Service"
+msgstr "停止服务"
+
+msgid "Restart Service"
+msgstr "重启服务"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "802.1x authentication username"
+msgstr "802.1x 认证用户名"
+
+msgid "Format: studentID@carrier, e.g. 212306666@cucc; Mobile=cmcc, Unicom=cucc, Telecom=ctcc"
+msgstr "用户名为学号@运营商，例如212306666@cucc；移动为cmcc，联通为cucc，电信为ctcc"
+
+msgid "Username must be 3-64 characters"
+msgstr "用户名长度必须在3-64字符之间"
+
+msgid "Username can only contain letters, numbers, @, ., _ and -"
+msgstr "用户名只能包含字母、数字、@、.、_和-"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "802.1x authentication password"
+msgstr "802.1x 认证密码"
+
+msgid "Default is last 6 digits of ID card, can be changed in official iNode client"
+msgstr "密码默认为身份证号后六位，可以在官方客户端iNode中修改"
+
+msgid "Password must be 4-128 characters"
+msgstr "密码长度必须在4-128字符之间"
+
+msgid "Network Interface"
+msgstr "网络接口"
+
+msgid "Network interface for authentication"
+msgstr "用于认证的网络接口"
+
+msgid "Use 'ip addr' to check, look for interface with 10.38.x.x IP"
+msgstr "可以用ip addr命令查看，有10.38开头ip的接口"
+
+msgid "Network interface can only contain letters and numbers"
+msgstr "网络接口只能包含字母和数字"
+
+msgid "Enable Scheduled Start"
+msgstr "启用定时启动"
+
+msgid "When enabled, service will auto-start at 7:00 AM on weekdays (Mon-Fri)"
+msgstr "启用后将在每周一至周五的 7:00 自动启动服务"
+
+msgid "Scheduled Task Status"
+msgstr "定时任务状态"
+
+msgid "Enabled (Auto-start at 7:00 AM on weekdays)"
+msgstr "已启用 (每周一至周五 7:00 自动启动)"
+
+msgid "Disabled"
+msgstr "未启用"
