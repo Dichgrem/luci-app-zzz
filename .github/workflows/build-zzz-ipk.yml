@@ -1,0 +1,167 @@
+name: Build IPK
+
+on:
+  workflow_dispatch:
+    inputs:
+      ramips:
+        description: 'ramips'
+        required: false
+        type: boolean
+        default: true
+      filogic:
+        description: 'filogic'
+        required: false
+        type: boolean
+        default: true
+      x86_64:
+        description: 'x86_64'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  matrix-setup:
+    runs-on: ubuntu-latest
+    outputs:
+      architectures: ${{ steps.set-matrix.outputs.architectures }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          ARCHS='['
+          if [ "${{ inputs.ramips }}" == "true" ]; then
+            ARCHS=$ARCHS'"ramips",'
+          fi
+          if [ "${{ inputs.filogic }}" == "true" ]; then
+            ARCHS=$ARCHS'"filogic",'
+          fi
+          if [ "${{ inputs.x86_64 }}" == "true" ]; then
+            ARCHS=$ARCHS'"x86_64",'
+          fi
+          ARCHS=${ARCHS%,}
+          ARCHS=$ARCHS']'
+          echo "architectures=$ARCHS" >> $GITHUB_OUTPUT
+          echo "Selected architectures: $ARCHS"
+
+  build:
+    needs: matrix-setup
+    if: needs.matrix-setup.outputs.architectures != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ${{ fromJson(needs.matrix-setup.outputs.architectures) }}
+
+    env:
+      RAMIPS_URL: https://downloads.openwrt.org/releases/24.10.5/targets/ramips/mt7621/openwrt-sdk-24.10.5-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      FILOGIC_URL: https://downloads.openwrt.org/releases/24.10.5/targets/mediatek/filogic/openwrt-sdk-24.10.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      X86_URL: https://downloads.openwrt.org/releases/24.10.5/targets/x86/64/openwrt-sdk-24.10.5-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      WORK_ROOT: ${{ github.workspace }}/opwrt-sdk
+      CACHE_DIR: ${{ github.workspace }}/cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache SDK
+        uses: actions/cache@v4
+        id: sdk-cache
+        with:
+          path: ${{ env.WORK_ROOT }}
+          key: ${{ matrix.sdk }}-sdk-24.10.5
+          enableCrossOsArchive: true
+
+      - name: Install dependencies
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential git wget python3 rsync zstd g++ make libncurses-dev
+
+      - name: Set SDK variables
+        run: |
+          if [ "${{ matrix.sdk }}" == "ramips" ]; then
+            echo "SDK_URL=${{ env.RAMIPS_URL }}" >> $GITHUB_ENV
+            echo "PACKAGE_ARCH=ramips" >> $GITHUB_ENV
+          elif [ "${{ matrix.sdk }}" == "filogic" ]; then
+            echo "SDK_URL=${{ env.FILOGIC_URL }}" >> $GITHUB_ENV
+            echo "PACKAGE_ARCH=aarch64_cortex-a53" >> $GITHUB_ENV
+          else
+            echo "SDK_URL=${{ env.X86_URL }}" >> $GITHUB_ENV
+            echo "PACKAGE_ARCH=x86_64" >> $GITHUB_ENV
+          fi
+
+      - name: Show build target
+        run: |
+          echo "👉 正在编译 ${{ matrix.sdk }} 架构 (${{ env.PACKAGE_ARCH }})"
+
+      - name: Download & extract SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK_ROOT"
+          cd "$WORK_ROOT"
+
+          SDK_TAR="$(basename "$SDK_URL")"
+          echo "下载SDK: $SDK_TAR"
+          wget -q --show-progress "$SDK_URL" -O "$SDK_TAR"
+
+          echo "解压SDK..."
+          tar --use-compress-program="zstd -q -d" -xf "$SDK_TAR"
+
+          SDK_ROOT="$(find . -maxdepth 1 -type d -name 'openwrt-sdk*' | head -n 1)"
+          SDK_ROOT="$(cd "$SDK_ROOT" && pwd)"
+          echo "SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
+
+      - name: Set SDK_ROOT from cache
+        if: steps.sdk-cache.outputs.cache-hit == 'true'
+        run: |
+          SDK_ROOT="$(find "$WORK_ROOT" -maxdepth 1 -type d -name 'openwrt-sdk*' | head -n 1)"
+          SDK_ROOT="$(cd "$SDK_ROOT" && pwd)"
+          echo "SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
+          echo "使用缓存的SDK: $SDK_ROOT"
+
+      - name: Setup feeds
+        run: |
+          set -euo pipefail
+          cd "$SDK_ROOT"
+          echo "添加 zzz feed"
+          sed -i '/^src-git zzz/d' feeds.conf.default 2>/dev/null || true
+          echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git" >> feeds.conf.default
+          echo "更新 feeds"
+          ./scripts/feeds update -a
+          ./scripts/feeds update luci
+          ./scripts/feeds update zzz
+          echo "安装 feeds"
+          ./scripts/feeds install -a -p luci
+          ./scripts/feeds install luci-app-zzz zzz
+
+      - name: Build packages
+        run: |
+          set -euo pipefail
+          cd "$SDK_ROOT"
+          make defconfig
+          echo "编译 luci-app-zzz 和 zzz"
+          make package/luci-app-zzz/compile V=s
+          make package/zzz/compile V=s
+
+      - name: Collect packages
+        run: |
+          set -euo pipefail
+          OUT="$GITHUB_WORKSPACE/output"
+          mkdir -p "$OUT"
+
+          echo "所有编译的 ipk 文件:"
+          find "$SDK_ROOT/bin/packages" -name "*.ipk" -type f
+
+          echo ""
+          echo "复制 zzz 和 luci-app-zzz 包:"
+          find "$SDK_ROOT/bin/packages" \( -name "zzz_*.ipk" -o -name "luci-app-zzz_*.ipk" \) -type f -exec cp {} "$OUT"/ \;
+
+          echo "输出目录内容:"
+          ls -lah "$OUT"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.sdk }}
+          path: output/*.ipk
+          if-no-files-found: error
