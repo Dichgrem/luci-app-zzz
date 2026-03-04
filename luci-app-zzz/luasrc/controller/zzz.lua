@@ -1,22 +1,16 @@
--- /usr/lib/lua/luci/controller/zzz.lua
-module("luci.controller.zzz", package.seeall)
+local zzz = {}
 
-function index()
+function zzz.index()
 	if not nixio.fs.access("/etc/config/zzz") then
 		return
 	end
 
-	-- Menu
-	entry({ "admin", "network", "zzz" }, cbi("zzz"), "ZZZ", 60).dependent = false
-
-	-- Settings
+	entry({ "admin", "network", "zzz" }, form("zzz"), "ZZZ", 60).dependent = false
 	entry({ "admin", "network", "zzz", "service_control" }, call("service_control")).leaf = true
-
-	-- Status API
 	entry({ "admin", "network", "zzz", "get_status" }, call("act_status")).leaf = true
 end
 
-function service_control()
+function zzz.service_control()
 	local sys = require("luci.sys")
 	local util = require("luci.util")
 	local action = luci.http.formvalue("action")
@@ -27,11 +21,11 @@ function service_control()
 	if action and valid_actions[action] then
 		local cmd = ""
 		if action == "start" then
-			cmd = "/etc/rc.d/S99zzz start"
+			cmd = "service zzz start"
 		elseif action == "stop" then
-			cmd = "/etc/rc.d/S99zzz stop"
+			cmd = "service zzz stop"
 		elseif action == "restart" then
-			cmd = "/etc/rc.d/S99zzz stop && sleep 2 && /etc/rc.d/S99zzz start"
+			cmd = "service zzz restart"
 		end
 
 		if cmd ~= "" then
@@ -52,12 +46,12 @@ function service_control()
 	luci.http.write_json(result)
 end
 
-function act_status()
+function zzz.act_status()
 	local sys = require("luci.sys")
 	local util = require("luci.util")
 	local status = {}
 
-	status.running = (sys.call("pgrep -f zzz >/dev/null") == 0)
+	status.running = (sys.call("service zzz status >/dev/null 2>&1 && pgrep -f zzz >/dev/null") == 0)
 
 	if status.running then
 		status.process_info = util.trim(sys.exec("ps | grep -v grep | grep zzz"))
@@ -77,3 +71,5 @@ function act_status()
 	luci.http.prepare_content("application/json")
 	luci.http.write_json(status)
 end
+
+return zzz

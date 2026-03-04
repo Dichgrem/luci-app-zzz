@@ -1,15 +1,15 @@
 #!/bin/sh /etc/rc.common
 
 START=99
+STOP=15
 USE_PROCD=1
 
 CONFIG=/etc/zzz/config.ini
 
 start_service() {
-  # 检查是否启用
   local enabled=$(uci -q get zzz.general.enabled)
   [ "$enabled" = "1" ] || {
-    echo "zzz is disabled"
+    echo "zzz is disabled in uci config"
     return 1
   }
 
@@ -17,7 +17,9 @@ start_service() {
 
   procd_open_instance
   procd_set_param command /usr/bin/zzz "$CONFIG"
-  procd_set_param respawn
+  procd_set_param respawn respawn_retry 5 5 60
+  procd_set_param stderr 1
+  procd_set_param stdout 1
   procd_close_instance
 }
 
@@ -25,15 +27,22 @@ stop_service() {
   procd_kill zzz
 }
 
+reload_service() {
+  generate_config
+  procd_send_signal zzz HUP
+}
+
+service_running() {
+  procd_running zzz
+}
+
 generate_config() {
   mkdir -p /etc/zzz
 
-  # 获取UCI配置
   local username=$(uci -q get zzz.auth.username)
   local password=$(uci -q get zzz.auth.password)
   local device=$(uci -q get zzz.auth.device)
 
-  # 检查必要参数
   [ -z "$username" ] && {
     logger -t zzz "Error: username not configured"
     return 1
@@ -44,11 +53,16 @@ generate_config() {
     return 1
   }
 
-  # 生成INI配置文件
   cat >"$CONFIG" <<EOF
 [auth]
 username = $username
 password = $password
 device = ${device:-eth0}
 EOF
+
+  logger -t zzz "Config generated for device: ${device:-eth0}"
+}
+
+validate_config() {
+  generate_config
 }
