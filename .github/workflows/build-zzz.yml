@@ -1,4 +1,4 @@
-name: Build luci-app-zzz
+name: Build IPK
 
 on:
   workflow_dispatch:
@@ -53,22 +53,14 @@ jobs:
         sdk: ${{ fromJson(needs.matrix-setup.outputs.architectures) }}
 
     env:
-      RAMIPS_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/ramips/mt7621/immortalwrt-sdk-24.10.3-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-      FILOGIC_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/mediatek/filogic/immortalwrt-sdk-24.10.3-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-      X86_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/x86/64/immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-      WORK_ROOT: ${{ github.workspace }}/imwrt-sdk
+      RAMIPS_URL: https://downloads.openwrt.org/releases/24.10.5/targets/ramips/mt7621/openwrt-sdk-24.10.5-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      FILOGIC_URL: https://downloads.openwrt.org/releases/24.10.5/targets/mediatek/filogic/openwrt-sdk-24.10.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      X86_URL: https://downloads.openwrt.org/releases/24.10.5/targets/x86/64/openwrt-sdk-24.10.5-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      WORK_ROOT: ${{ github.workspace }}/opwrt-sdk
       CACHE_DIR: ${{ github.workspace }}/cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Cache SDK
-        uses: actions/cache@v4
-        id: sdk-cache
-        with:
-          path: ${{ env.WORK_ROOT }}
-          key: ${{ matrix.sdk }}-sdk-24.10.3
-          enableCrossOsArchive: true
 
       - name: Install dependencies
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -107,17 +99,9 @@ jobs:
           echo "解压SDK..."
           tar --use-compress-program="zstd -q -d" -xf "$SDK_TAR"
 
-          SDK_ROOT="$(find . -maxdepth 1 -type d -name 'immortalwrt-sdk*' | head -n 1)"
+          SDK_ROOT="$(find . -maxdepth 1 -type d -name 'openwrt-sdk*' | head -n 1)"
           SDK_ROOT="$(cd "$SDK_ROOT" && pwd)"
           echo "SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
-
-      - name: Set SDK_ROOT from cache
-        if: steps.sdk-cache.outputs.cache-hit == 'true'
-        run: |
-          SDK_ROOT="$(find "$WORK_ROOT" -maxdepth 1 -type d -name 'immortalwrt-sdk*' | head -n 1)"
-          SDK_ROOT="$(cd "$SDK_ROOT" && pwd)"
-          echo "SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
-          echo "使用缓存的SDK: $SDK_ROOT"
 
       - name: Setup feeds
         run: |
@@ -125,7 +109,7 @@ jobs:
           cd "$SDK_ROOT"
           echo "添加 zzz feed"
           sed -i '/^src-git zzz/d' feeds.conf.default 2>/dev/null || true
-          echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git" >> feeds.conf.default
+          echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git;main" >> feeds.conf.default
           echo "更新 feeds"
           ./scripts/feeds update -a
           ./scripts/feeds update luci
@@ -154,7 +138,7 @@ jobs:
 
           echo ""
           echo "复制 zzz 和 luci-app-zzz 包:"
-          find "$SDK_ROOT/bin/packages" \( -name "zzz_*.ipk" -o -name "luci-app-zzz_*.ipk" \) -type f -exec cp {} "$OUT"/ \;
+          find "$SDK_ROOT/bin/packages" \( -name "zzz_*.ipk" -o -name "luci-app-zzz_*.ipk" -o -name "luci-i18n-zzz-zh-cn_*.ipk" \) -type f -exec cp {} "$OUT"/ \;
 
           echo "输出目录内容:"
           ls -lah "$OUT"
