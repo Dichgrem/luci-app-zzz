@@ -2,7 +2,7 @@
 
 **luci-app-zzz** is a Front-end interface in openwrt for zzz - the modern 802.1x standard authentication client.
 
-Supports OpenWRT versions 21.02.0 to 24.10.5; adaptation for version 25.x is underway.
+Supports OpenWRT versions 21.02.0 to 25.12.0
 
 <p align="center">
   <img src="https://github.com/Dichgrem/luci-app-zzz/blob/main/screenshot.png" width="400">
@@ -10,7 +10,7 @@ Supports OpenWRT versions 21.02.0 to 24.10.5; adaptation for version 25.x is und
 
 ## How to use
 
-- Step 0: Make sure you have an ``openwrt router``, ``download the ipk`` in Releases in this project, and ``upload and install`` it in the system-package of the Luci background.
+- Step 0: Make sure you have an ``openwrt router``, ``download the ipk or apk`` in Releases in this project, and ``upload and install`` it in the system-package of the Luci background.
 - Step 1：Fill in the user name: Student ID@operator. For example, ``212306666@cucc``, China Unicom is cucc, mobile is cmcc, and telecom is ctcc.
 - Step 2: Fill in the password. The ``initial password`` is the last six digits of the ID card by default. It can be modified in the official client.
 - Step 3: Select your network card; generally speaking, you can use ``ip addr`` to view the network card that has been assigned an IP, such as eth1.
@@ -42,13 +42,26 @@ make package/zzz/compile V=s
 ```
 to start build.
 
-- You can use this command to find the compiled ipk:
+- You can use this command to find the compiled packages:
 
 ```
 ❯ find bin/ -name "zzz*.ipk"
 bin/packages/x86_64/base/zzz_1.0.0-r1_x86_64.ipk
 ❯ find bin/ -name "luci-app-zzz*.ipk"
 bin/packages/x86_64/base/luci-app-zzz_0_all.ipk
+❯ find bin/ -name "luci-i18n-zzz*.apk"
+bin/packages/x86_64/base/luci-i18n-zzz-zh-cn_26.063.52301~6e658ac_all.ipk
+```
+
+or if you are use 25.x version:
+
+```
+❯ find bin/ -name "zzz*.apk"
+bin/packages/aarch64_cortex-a53/zzz/zzz-2.0.1-r1.apk
+❯ find bin/ -name "luci-app-zzz*.apk"
+bin/packages/aarch64_cortex-a53/zzz/luci-app-zzz-2.0.1-r1.apk
+❯ find bin/ -name "luci-i18n-zzz*.apk"
+bin/packages/aarch64_cortex-a53/zzz/luci-i18n-zzz-zh-cn-26.064.09925~74381fd.apk
 ```
 
 ## Acknowledgements
