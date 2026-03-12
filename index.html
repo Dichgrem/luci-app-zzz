@@ -1,38 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>zzz OpenWrt APK Feed</title>
+  <title>luci-app-zzz - OpenWrt APK Feed</title>
   <style>
-    body { font-family: monospace; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { border-bottom: 2px solid #333; }
-    code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
-    pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; overflow-x: auto; }
-    .arch { margin: 1.5rem 0; }
+    body { font-family: monospace; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.2rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+    ul { list-style: none; padding: 0; }
+    li::before { content: "📁 "; }
+    a { text-decoration: none; color: #0366d6; }
+    a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <h1>zzz OpenWrt APK Feed</h1>
-  <p>自动构建 OpenWrt 25.x APK 软件包仓库</p>
-  <h2>使用方法</h2>
-  <p>在路由器上执行以下命令添加本仓库：</p>
-  <div class="arch">
-    <h3>x86_64</h3>
-    <pre>echo "https://Dichgrem.github.io/luci-app-zzz/x86_64" \
-    >> /etc/apk/repositories
-wget -O /etc/apk/keys/zzz.pub \
-    https://Dichgrem.github.io/luci-app-zzz/x86_64/key.pub.pem
-apk update && apk add luci-app-zzz</pre>
-  </div>
-  <div class="arch">
-    <h3>aarch64_cortex-a53 (MediaTek Filogic)</h3>
-    <pre>echo "https://Dichgrem.github.io/luci-app-zzz/aarch64_cortex-a53" \
-    >> /etc/apk/repositories</pre>
-  </div>
-  <div class="arch">
-    <h3>mipsel_24kc (Ramips MT7621)</h3>
-    <pre>echo "https://Dichgrem.github.io/luci-app-zzz/mipsel_24kc" \
-    >> /etc/apk/repositories</pre>
-  </div>
+  <h1>Index of luci-app-zzz</h1>
+  <ul>
+    <li><a href="https://Dichgrem.github.io/luci-app-zzz/x86_64/">x86_64/</a></li>
+    <li><a href="https://Dichgrem.github.io/luci-app-zzz/aarch64_cortex-a53/">aarch64_cortex-a53/</a></li>
+    <li><a href="https://Dichgrem.github.io/luci-app-zzz/mipsel_24kc/">mipsel_24kc/</a></li>
+  </ul>
 </body>
 </html>
