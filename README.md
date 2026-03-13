@@ -89,9 +89,8 @@ apk update && apk add luci-app-zzz
 
 ```bash
 # Trust public key
-FINGERPRINT=$(usign -F -p /tmp/key-build.pub)
-wget -O /etc/opkg/keys/$FINGERPRINT \
-  https://Dichgrem.github.io/luci-app-zzz/ipk/ARCH/key-build.pub
+wget -O /etc/opkg/keys/47620a6da8acd29e \
+  https://Dichgrem.github.io/luci-app-zzz/ipk/aarch64_cortex-a53/key-build.pub
 # Add repository source
 echo "src/gz zzz https://Dichgrem.github.io/luci-app-zzz/ipk/ARCH" \
     >> /etc/opkg/customfeeds.conf
