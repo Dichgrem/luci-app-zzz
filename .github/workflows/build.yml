@@ -1,35 +1,26 @@
-name: Build APK
+name: Build
 on:
   push:
     branches:
       - main
     paths-ignore:
       - "*.md"
-      - ".github/workflows/build-ipk.yml"
   workflow_dispatch:
 permissions:
   contents: write
   pages: write
   id-token: write
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x86_64
-            sdk_name: x86-64
-            target: x86/64
             sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/x86/64/openwrt-sdk-25.12.0-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
           - arch: aarch64_cortex-a53
-            sdk_name: mediatek-filogic
-            target: mediatek/filogic
             sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/mediatek/filogic/openwrt-sdk-25.12.0-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
-          - arch: mipsel_24kc
-            sdk_name: ramips-mt7621
-            target: ramips/mt7621
-            sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/ramips/mt7621/openwrt-sdk-25.12.0-ramips-mt7621_gcc-14.3.0_musl.Linux-x86_64.tar.zst
     env:
       WORK_ROOT: ${{ github.workspace }}/openwrt-sdk
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -87,25 +78,106 @@ jobs:
       - name: Collect packages
         run: |
           ARCH="${{ matrix.arch }}"
-          mkdir -p repo/${ARCH}
+          mkdir -p output
           find "$SDK_ROOT/bin/packages" -type f \
             \( -name "zzz*.apk" \
                -o -name "luci-app-zzz*.apk" \
                -o -name "luci-i18n-zzz*.apk" \) \
-            -exec cp {} repo/${ARCH}/ \;
+            -exec cp {} output/ \;
           find "$SDK_ROOT/bin/packages/$ARCH" -name "packages.adb" \
-            -exec cp {} repo/${ARCH}/ \; 2>/dev/null || true
-          cp ~/.openwrt-key/key.pub.pem repo/${ARCH}/
+            -exec cp {} output/ \; 2>/dev/null || true
+          cp ~/.openwrt-key/key.pub.pem output/
           echo "Collected packages:"
-          ls -lah repo/${ARCH}/
+          ls -lah output/
       - name: Upload artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: repo-${{ matrix.arch }}
-          path: repo/${{ matrix.arch }}
+          name: apk-${{ matrix.arch }}
+          path: output/
+          if-no-files-found: error
+  build-ipk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/x86/64/openwrt-sdk-24.10.5-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - arch: aarch64_cortex-a53
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/mediatek/filogic/openwrt-sdk-24.10.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+    env:
+      WORK_ROOT: ${{ github.workspace }}/openwrt-sdk
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            build-essential git wget python3 rsync \
+            zstd g++ make libncurses-dev
+      - name: Download & Extract SDK
+        run: |
+          set -e
+          mkdir -p "$WORK_ROOT"
+          cd "$WORK_ROOT"
+          wget -q --show-progress "${{ matrix.sdk_url }}" -O sdk.tar.zst
+          tar --use-compress-program="zstd -d -q" -xf sdk.tar.zst
+          SDK_ROOT=$(find . -maxdepth 1 -type d -name "openwrt-sdk*" | head -n 1)
+          echo "SDK_ROOT=$(cd "$SDK_ROOT" && pwd)" >> $GITHUB_ENV
+      - name: Setup feeds
+        run: |
+          cd "$SDK_ROOT"
+          sed -i '/^src-git zzz/d' feeds.conf.default || true
+          echo "src-git zzz https://github.com/${{ github.repository }}.git;main" >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+      - name: Build
+        run: |
+          set -euo pipefail
+          cd "$SDK_ROOT"
+          make defconfig
+          make package/luci-app-zzz/compile -j$(nproc) V=s
+          make package/zzz/compile -j$(nproc) V=s
+      - name: Generate signing key
+        run: |
+          if [ -n "${{ secrets.REPO_KEY_USIGN }}" ]; then
+            echo "${{ secrets.REPO_KEY_USIGN }}" > "$SDK_ROOT/key-build"
+            echo "${{ secrets.REPO_KEY_USIGN_PUB }}" > "$SDK_ROOT/key-build.pub"
+          else
+            cd "$SDK_ROOT"
+            ./staging_dir/host/bin/usign -G \
+              -s key-build \
+              -p key-build.pub \
+              -c "Local build key"
+          fi
+      - name: Generate index
+        run: |
+          cd "$SDK_ROOT"
+          make package/index V=s
+      - name: Collect packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+          mkdir -p output
+          find "$SDK_ROOT/bin/packages" -type f \
+            \( -name "zzz*.ipk" \
+               -o -name "luci-app-zzz*.ipk" \
+               -o -name "luci-i18n-zzz*.ipk" \) \
+            -exec cp {} output/ \;
+          find "$SDK_ROOT/bin/packages/$ARCH" \
+            \( -name "Packages" -o -name "Packages.gz" -o -name "Packages.sig" \) \
+            -exec cp {} output/ \; 2>/dev/null || true
+          cp "$SDK_ROOT/key-build.pub" output/
+          echo "Collected packages:"
+          ls -lah output/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ipk-${{ matrix.arch }}
+          path: output/
           if-no-files-found: error
   publish:
-    needs: build
+    needs: [build-apk, build-ipk]
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -114,12 +186,19 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4.3.0
         with:
-          path: repo
-      - name: Fix artifact directory structure
+          path: artifacts
+      - name: Arrange repository structure
         run: |
-          for d in repo/repo-*; do
-            arch="${d#repo/repo-}"
-            mv "$d" "repo/${arch}"
+          mkdir -p repo
+          for d in artifacts/apk-*; do
+            arch="${d#artifacts/apk-}"
+            mkdir -p "repo/apk/${arch}"
+            cp -r "$d"/. "repo/apk/${arch}/"
+          done
+          for d in artifacts/ipk-*; do
+            arch="${d#artifacts/ipk-}"
+            mkdir -p "repo/ipk/${arch}"
+            cp -r "$d"/. "repo/ipk/${arch}/"
           done
           echo "Repository structure:"
           find repo -type f | sort
@@ -134,10 +213,11 @@ jobs:
           <html lang="en">
           <head>
             <meta charset="UTF-8">
-            <title>${REPO} - OpenWrt APK Feed</title>
+            <title>${REPO} - OpenWrt Package Feed</title>
             <style>
-              body { font-family: monospace; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+              body { font-family: monospace; max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
               h1 { font-size: 1.2rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+              h2 { font-size: 1rem; margin-top: 1.5rem; }
               ul { list-style: none; padding: 0; }
               li::before { content: "📁 "; }
               a { text-decoration: none; color: #0366d6; }
@@ -146,10 +226,15 @@ jobs:
           </head>
           <body>
             <h1>Index of ${REPO}</h1>
+            <h2>APK (OpenWrt 25.12+)</h2>
             <ul>
-              <li><a href="${BASE}/x86_64/">x86_64/</a></li>
-              <li><a href="${BASE}/aarch64_cortex-a53/">aarch64_cortex-a53/</a></li>
-              <li><a href="${BASE}/mipsel_24kc/">mipsel_24kc/</a></li>
+              <li><a href="${BASE}/apk/x86_64/">apk/x86_64/</a></li>
+              <li><a href="${BASE}/apk/aarch64_cortex-a53/">apk/aarch64_cortex-a53/</a></li>
+            </ul>
+            <h2>IPK (OpenWrt 24.10 / opkg)</h2>
+            <ul>
+              <li><a href="${BASE}/ipk/x86_64/">ipk/x86_64/</a></li>
+              <li><a href="${BASE}/ipk/aarch64_cortex-a53/">ipk/aarch64_cortex-a53/</a></li>
             </ul>
           </body>
           </html>
@@ -160,4 +245,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: repo
           keep_files: false
-          commit_message: "deploy: update APK feed [skip ci]"
+          commit_message: "deploy: update package feed [skip ci]"

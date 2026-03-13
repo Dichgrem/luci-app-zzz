@@ -70,19 +70,33 @@ bin/packages/aarch64_cortex-a53/zzz/luci-i18n-zzz-zh-cn-26.064.09925~74381fd.apk
 
 ## Add Feeds
 
-Replace `ARCH` with your device architecture (`x86_64` / `aarch64_cortex-a53` / `mipsel_24kc`):
+Replace `ARCH` with your device architecture (`x86_64` / `aarch64_cortex-a53`):
+
+### APK (OpenWrt 25.12+)
 
 ```bash
 # Trust public key
 wget -O /etc/apk/keys/zzz.pem \
-    https://Dichgrem.github.io/luci-app-zzz/ARCH/key.pub.pem
-
+    https://Dichgrem.github.io/luci-app-zzz/apk/ARCH/key.pub.pem
 # Add repository source
-echo "https://Dichgrem.github.io/luci-app-zzz/ARCH/packages.adb" \
+echo "https://Dichgrem.github.io/luci-app-zzz/apk/ARCH/packages.adb" \
     >> /etc/apk/repositories
-
 # Install
 apk update && apk add luci-app-zzz
+```
+
+### IPK (OpenWrt 24.10 / opkg)
+
+```bash
+# Trust public key
+FINGERPRINT=$(usign -F -p /tmp/key-build.pub)
+wget -O /etc/opkg/keys/$FINGERPRINT \
+  https://Dichgrem.github.io/luci-app-zzz/ipk/ARCH/key-build.pub
+# Add repository source
+echo "src/gz zzz https://Dichgrem.github.io/luci-app-zzz/ipk/ARCH" \
+    >> /etc/opkg/customfeeds.conf
+# Install
+opkg update && opkg install luci-app-zzz
 ```
 
 ## Acknowledgements
