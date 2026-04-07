@@ -1,5 +1,5 @@
 <p align="right">
-  <a href="README.md">English</a> | 
+  <a href="README.md">English</a> |
   <a href="README.zh-CN.md">简体中文</a>
 </p>
 
@@ -7,24 +7,22 @@
 
 **luci-app-zzz** is a LuCI front-end for **zzz**, an open-source implementation of the **H3C 802.1X campus network client** for OpenWrt.
 
-Supports OpenWrt versions **21.02.0 to 25.12.0**.
-
 <p align="center">
   <img src="https://github.com/Dichgrem/luci-app-zzz/blob/main/screenshot.png" width="400">
 </p>
 
 ## How to use
 
-- **Step 0:** Make sure you have an **OpenWrt router**. Download an `.ipk` or `.apk` file from the **Releases** section of this project, upload it, and install it through the **LuCI package manager**.  
-  Alternatively, you can add this project's feed to your router; see the bottom of this README for details.
+- **Step 0:** Make sure you have an **OpenWrt router**. Download an `.ipk` or `.apk` file from the **Releases** section of this project, upload it, and install it through the **LuCI package manager**.
+  Alternatively, you can integrate this project into your OpenWrt firmware during compilation; see the **How to build** section below.
 
-- **Step 1:** Fill in the **username** in the format `StudentID@operator`.  
-  For example: `212306666@cucc`.  
+- **Step 1:** Fill in the **username** in the format `StudentID@operator`.
+  For example: `212306666@cucc`.
   China Unicom uses `cucc`, China Mobile uses `cmcc`, and China Telecom uses `ctcc`.
 
 - **Step 2:** Enter the password. By default, the **initial password** is the last six digits of your ID card. It can be changed in the official client.
 
-- **Step 3:** Select your network interface. Usually, you can run `ip addr` to find the interface that has been assigned an IP address (for example `eth1`).
+- **Step 3:** Select your network interface. Usually, you can run `ip addr` to check the interface assigned by your university, for example `eth1`.
 
 - **Step 4:** Start the service and check whether you can access the Internet. Then enable **scheduled startup**, because the campus network is usually unavailable from **00:00 to 07:00**.
 
@@ -47,7 +45,7 @@ echo "src-git zzz https://github.com/Dichgrem/luci-app-zzz.git" >> feeds.conf.de
 
 Then select:
 
-```
+```text
 Network → zzz
 LuCI → Applications → luci-app-zzz
 ```
@@ -100,7 +98,9 @@ bin/packages/aarch64_cortex-a53/zzz/luci-i18n-zzz-zh-cn-26.064.09925~74381fd.apk
 
 ## Add Feeds
 
-Replace `ARCH` with your device architecture (`x86_64` / `aarch64_cortex-a53`).
+To keep this project up to date, you can either upload package files manually, or add the repository feed to receive updates alongside your system packages. To add the feed:
+
+Replace `ARCH` with your device architecture (`x86_64` / `aarch64_cortex-a53` / `aarch64_generic` / `mipsel_24kc` / `i386_pentium4` / `arm_cortex-a9_vfpv3-d16` / `arm_cortex-a7_neon-vfpv4`).
 
 ### APK (OpenWrt 25.12+)
 
@@ -136,6 +136,6 @@ opkg update && opkg install luci-app-zzz
 
 ## Acknowledgements
 
-* [https://github.com/diredocks/zzz](https://github.com/diredocks/zzz)
-* [https://github.com/diredocks/nyn](https://github.com/diredocks/nyn)
-* [https://github.com/bitdust/njit8021xclient](https://github.com/bitdust/njit8021xclient)
+- [https://github.com/diredocks/zzz](https://github.com/diredocks/zzz)
+- [https://github.com/diredocks/nyn](https://github.com/diredocks/nyn)
+- [https://github.com/bitdust/njit8021xclient](https://github.com/bitdust/njit8021xclient)

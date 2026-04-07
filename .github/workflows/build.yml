@@ -21,6 +21,16 @@ jobs:
             sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/x86/64/openwrt-sdk-25.12.0-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
           - arch: aarch64_cortex-a53
             sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/mediatek/filogic/openwrt-sdk-25.12.0-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - arch: aarch64_generic
+            sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/rockchip/armv8/openwrt-sdk-25.12.0-rockchip-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - arch: mipsel_24kc
+            sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/ramips/mt7621/openwrt-sdk-25.12.0-ramips-mt7621_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - arch: i386_pentium4
+            sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/x86/generic/openwrt-sdk-25.12.0-x86-generic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - arch: arm_cortex-a9_vfpv3-d16
+            sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/mvebu/cortexa9/openwrt-sdk-25.12.0-mvebu-cortexa9_gcc-14.3.0_musl_eabi.Linux-x86_64.tar.zst
+          - arch: arm_cortex-a7_neon-vfpv4
+            sdk_url: https://downloads.openwrt.org/releases/25.12.0/targets/ipq40xx/generic/openwrt-sdk-25.12.0-ipq40xx-generic_gcc-14.3.0_musl_eabi.Linux-x86_64.tar.zst
     env:
       WORK_ROOT: ${{ github.workspace }}/openwrt-sdk
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -105,6 +115,16 @@ jobs:
             sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/x86/64/openwrt-sdk-24.10.5-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
           - arch: aarch64_cortex-a53
             sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/mediatek/filogic/openwrt-sdk-24.10.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - arch: aarch64_generic
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/rockchip/armv8/openwrt-sdk-24.10.5-rockchip-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - arch: mipsel_24kc
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/ramips/mt7621/openwrt-sdk-24.10.5-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - arch: i386_pentium4
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/x86/generic/openwrt-sdk-24.10.5-x86-generic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - arch: arm_cortex-a9_vfpv3-d16
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/mvebu/cortexa9/openwrt-sdk-24.10.5-mvebu-cortexa9_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst
+          - arch: arm_cortex-a7_neon-vfpv4
+            sdk_url: https://downloads.openwrt.org/releases/24.10.5/targets/ipq40xx/generic/openwrt-sdk-24.10.5-ipq40xx-generic_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst
     env:
       WORK_ROOT: ${{ github.workspace }}/openwrt-sdk
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -114,8 +134,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            build-essential git wget python3 rsync \
-            zstd g++ make libncurses-dev
+            build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git \
+            libncurses-dev libssl-dev python3-setuptools python3-pyelftools \
+            rsync swig unzip zlib1g-dev file wget curl jq zstd
       - name: Download & Extract SDK
         run: |
           set -e
@@ -228,13 +250,11 @@ jobs:
             <h1>Index of ${REPO}</h1>
             <h2>APK (OpenWrt 25.12+)</h2>
             <ul>
-              <li><a href="${BASE}/apk/x86_64/">apk/x86_64/</a></li>
-              <li><a href="${BASE}/apk/aarch64_cortex-a53/">apk/aarch64_cortex-a53/</a></li>
+          $(for d in repo/apk/*; do [ -d "$d" ] && arch=$(basename "$d") && echo "    <li><a href=\"${BASE}/apk/${arch}/\">apk/${arch}/</a></li>"; done)
             </ul>
             <h2>IPK (OpenWrt 24.10 / opkg)</h2>
             <ul>
-              <li><a href="${BASE}/ipk/x86_64/">ipk/x86_64/</a></li>
-              <li><a href="${BASE}/ipk/aarch64_cortex-a53/">ipk/aarch64_cortex-a53/</a></li>
+          $(for d in repo/ipk/*; do [ -d "$d" ] && arch=$(basename "$d") && echo "    <li><a href=\"${BASE}/ipk/${arch}/\">ipk/${arch}/</a></li>"; done)
             </ul>
           </body>
           </html>
