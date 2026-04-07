@@ -7,7 +7,15 @@ PKG_RELEASE:=1
 PKG_MAINTAINER:=Dichgrem <brcefy@gmail.com>
 PKG_LICENSE:=MIT
 
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/diredocks/zzz.git
+PKG_SOURCE_VERSION:=556193f42989f2b80c6df6f0e9432cbcdceedce7
+PKG_MIRROR_HASH:=skip
+
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
+
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/meson.mk
 
 define Package/zzz
   SECTION:=net
@@ -19,7 +27,7 @@ endef
 
 define Package/zzz/description
   A 802.1x authentication client for OpenWrt routers.
-  Cross-compiled C version for optimal performance and compatibility.
+  Built from source for optimal performance and compatibility.
 endef
 
 define Package/zzz/conffiles
@@ -27,14 +35,7 @@ define Package/zzz/conffiles
 /etc/zzz/config.ini
 endef
 
-define Build/Prepare
-endef
-
-define Build/Configure
-endef
-
-define Build/Compile
-endef
+MESON_ARGS += -Dc_std=gnu11
 
 define Package/zzz/install
 	$(INSTALL_DIR) $(1)/usr/bin
@@ -42,19 +43,7 @@ define Package/zzz/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/zzz
 
-	# Install precompiled binary based on architecture
-	$(if $(CONFIG_TARGET_x86_64),$(INSTALL_BIN) ./files/bin/zzz-x86_64-linux-musl $(1)/usr/bin/zzz)
-	$(if $(CONFIG_TARGET_armvirt_64),$(INSTALL_BIN) ./files/bin/zzz-aarch64-linux-musl $(1)/usr/bin/zzz)
-	$(if $(CONFIG_TARGET_bcm27xx_bcm2711),$(INSTALL_BIN) ./files/bin/zzz-aarch64-linux-musl $(1)/usr/bin/zzz)
-	$(if $(CONFIG_TARGET_ath79_generic),$(INSTALL_BIN) ./files/bin/zzz-mipsel-linux-musleabi $(1)/usr/bin/zzz)
-	$(if $(CONFIG_TARGET_ramips_mt7621),$(INSTALL_BIN) ./files/bin/zzz-mipsel-linux-musleabi $(1)/usr/bin/zzz)
-	$(if $(CONFIG_TARGET_mediatek_mt7622),$(INSTALL_BIN) ./files/bin/zzz-aarch64-linux-musl $(1)/usr/bin/zzz)
-	$(if $(CONFIG_TARGET_rockchip_armv8),$(INSTALL_BIN) ./files/bin/zzz-aarch64-linux-musl $(1)/usr/bin/zzz)
-	# Fallback - try to detect architecture
-	$(if $(findstring aarch64,$(ARCH)),$(INSTALL_BIN) ./files/bin/zzz-aarch64-linux-musl $(1)/usr/bin/zzz)
-	$(if $(findstring mips,$(ARCH)),$(INSTALL_BIN) ./files/bin/zzz-mipsel-linux-musleabi $(1)/usr/bin/zzz)
-	$(if $(findstring x86,$(ARCH)),$(INSTALL_BIN) ./files/bin/zzz-x86_64-linux-musl $(1)/usr/bin/zzz)
-
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/zzz $(1)/usr/bin/zzz
 	$(INSTALL_BIN) ./files/usr/bin/zzz-device-info $(1)/usr/bin/
 	$(INSTALL_CONF) ./files/etc/config/zzz $(1)/etc/config/
 	$(INSTALL_CONF) ./files/etc/zzz/config.ini $(1)/etc/zzz/
